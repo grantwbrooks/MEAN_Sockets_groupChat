@@ -1,0 +1,83 @@
+<html>
+    <head>
+    <title></title>
+        <link rel='stylesheet' href='/stylesheets/style.css' />
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script type ="text/javascript" src="/socket.io/socket.io.js"></script>
+<!-- I put this notify.js in my static folders but I shouldn't have, need to route to it properly -->
+        <script type ="text/javascript" src="/notifyjs/dist/notify.js"></script>
+        <script type ="text/javascript">
+            $(document).ready(function (){
+                //set up notification permission
+                if (!Notify.needsPermission) {
+                    // doNotification();
+                } else if (Notify.isSupported()) {
+                    Notify.requestPermission(onPermissionGranted, onPermissionDenied);
+                }
+                function onPermissionGranted() {
+                    console.log('Permission has been granted by the user');
+                    // doNotification();
+                }
+                function onPermissionDenied() {
+                    console.warn('Permission has been denied by the user');
+                }
+
+
+                // get the name of the user
+                var name = prompt('What is your name?');
+                // this triggers the connection event in our server!
+                var socket  = io.connect();
+                // we'll write all the socket stuff after the above line!
+                socket.emit("got_a_new_user", {name: name});
+                
+                $('#submitForm').submit(function (event){
+                    event.preventDefault();
+                    socket.emit("posting_form", {message: $('#message').val()});
+                    $('#message').val("");
+                });
+
+                socket.on('convos', function (data){
+                    addMessage(data.convos)});
+
+                var htmlConvo;
+                function addMessage(convoData) {
+                    htmlConvo = "";
+                    for(x in convoData){
+                        htmlConvo += `<h4>${convoData[x].name}: ${convoData[x].message} </h4>`;
+                    }
+                    message = document.getElementById('board');
+                    message.innerHTML = htmlConvo;
+                }
+
+                socket.on('notifications', function(notif){
+                    console.log('got in here');
+                    var myNotification = new Notify(`${notif.message} has disconnected!`, {
+                        body: "Tell them to come back!!",
+                        notifyShow: onNotifyShow
+                    });
+ 
+                    function onNotifyShow() {
+                    console.log('notification was shown!');
+                    }
+
+                    myNotification.show();
+                });
+
+                
+
+            })
+        </script>
+    </head>
+    <body>
+        <h1>Conversation Board</h1>
+        <div id="board">
+
+        </div>
+
+        <form action="/notUsing" method="post" id="submitForm">
+            <input type="text" name="message" placeholder="enter your message here" id="message">
+            <input type='submit' value='Send'>
+        </form>
+
+    </body>
+</html>
